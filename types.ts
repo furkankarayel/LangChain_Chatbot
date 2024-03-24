@@ -1,0 +1,1 @@
+export type Document<T = Record<string, any>> = T;

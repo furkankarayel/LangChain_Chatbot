@@ -3,20 +3,19 @@ import { PDFLoader } from "langchain/document_loaders/fs/pdf";
 import { CheerioWebBaseLoader } from "langchain/document_loaders/web/cheerio";
 
 
-/* Load all PDFs within the specified directory */
-const directoryLoader = new DirectoryLoader(
-  "docs_in/",
-  {
-    ".pdf": (path: string) => new PDFLoader(path),
-  }
-);
-
-export const directoryLoaderDocs = await directoryLoader.load();
+export async function loadDirectoryDocs() {
+  const directoryLoader = new DirectoryLoader(
+    "docs_in/",
+    {
+      ".pdf": (path: string) => new PDFLoader(path),
+    }
+  );
+  return await directoryLoader.load();
+}
 
 /* Cheerio: Web based loader */
-const loader = new CheerioWebBaseLoader(
-  "https://xyz.com/article"
-);
-export const webDocs = await loader.load();
-
+export async function loadWebDocs() {
+  const loader = new CheerioWebBaseLoader("https://xyz.com/article");
+  return await loader.load();
+}
 

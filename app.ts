@@ -1,59 +1,54 @@
-import "cheerio";
-import { directoryLoaderDocs } from "./loaders"
+import { loadDirectoryDocs } from "./loaders"
 import { textSplitter } from "./splitters"
-import { faissDocumentVectorStore } from "./stores"
-import { createOpenAIFunctionsAgent } from "langchain/agents";
-import { ChatOpenAI, OpenAI } from "@langchain/openai";
-import { pull } from "langchain/hub";
-import { AIMessage, BaseMessage, HumanMessage } from "@langchain/core/messages";
-
-import { initializeAgentExecutorWithOptions } from "langchain/agents";
-import { ChainTool } from "langchain/tools";
-import { Calculator } from "langchain/tools/calculator";
-import { DynamicTool } from "@langchain/core/tools";
-import { VectorDBQAChain } from "langchain/chains";
-import { ChatPromptTemplate, MessagesPlaceholder, } from "@langchain/core/prompts";
-const MEMORY_KEY = "chat_history";
-// Loader
-const docs = directoryLoaderDocs
-
-// Splitter
-const splits = textSplitter.splitDocuments(docs);
-
-// Store
-const vectorStore = await faissDocumentVectorStore(splits);
-
-// Retrieve and generate using the relevant snippets of the blog.
-const model = new OpenAI({ temperature: 0 });
-const chain = VectorDBQAChain.fromLLM(model, vectorStore);
-
-const qaTool = new ChainTool({
-    name: "state-of-union-qa",
-    description:
-        "State of the Union QA - useful for when you need to ask questions about the most recent state of the union address.",
-    chain: chain,
-});
+import { FaissStore } from "@langchain/community/vectorstores/faiss";
+import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
+import { MultiQueryRetriever } from "langchain/retrievers/multi_query";
 
 
-const tools = [new Calculator(), qaTool];
+async function main() {
+    // Loader
+    const docs = await loadDirectoryDocs();
 
-const memoryPrompt = ChatPromptTemplate.fromMessages([
-    [
-        "system",
-        "You are very powerful assistant, but bad at calculating lengths of words.",
-    ],
-    new MessagesPlaceholder(MEMORY_KEY),
-    ["user", "{input}"],
-    new MessagesPlaceholder("agent_scratchpad"),
-]);
+    // Splitter
+    const splits = await textSplitter.splitDocuments(docs);
 
-const prompt = await pull<ChatPromptTemplate>(
-    "hwchase17/openai-functions-agent"
-);
-const llm = new ChatOpenAI({ modelName: "gpt-3.5-turbo", temperature: 0 });
+    // Store
+    const vectorStore = await FaissStore.fromDocuments(
+        splits,
+        new OpenAIEmbeddings()
+    );
 
-const executor = await initializeAgentExecutorWithOptions(tools, model, {
-    agentType: "zero-shot-react-description",
-});
-console.log("Loaded agent.");
+    // Save the vector store to a directory
+    const directory = "your/directory/here";
+
+    await vectorStore.save(directory);
+
+    // Load the vector store from the same directory
+    const loadedVectorStore = await FaissStore.load(
+        directory,
+        new OpenAIEmbeddings()
+    );
+
+    // Retrieve
+    const model = new ChatOpenAI({ modelName: "gpt-3.5-turbo", temperature: 0 });
+    const retriever = MultiQueryRetriever.fromLLM({
+        llm: model,
+        retriever: vectorStore.asRetriever(),
+        verbose: true,
+    });
+
+    const query = "Was ist Objekterkennung?";
+    const retrievedDocs = await retriever.getRelevantDocuments(query);
+
+    console.log(retrievedDocs);
+}
+
+// Execute the main async function
+main().catch(console.error);
+
+
+
+
+
+
 
