@@ -19,7 +19,7 @@ async function main() {
     );
 
     // Save the vector store to a directory
-    const directory = "your/directory/here";
+    const directory = "persistence/";
 
     await vectorStore.save(directory);
 
@@ -37,7 +37,7 @@ async function main() {
         verbose: true,
     });
 
-    const query = "Was ist Objekterkennung?";
+    const query = "What's better for backend: node.js or go?";
     const retrievedDocs = await retriever.getRelevantDocuments(query);
 
     console.log(retrievedDocs);
